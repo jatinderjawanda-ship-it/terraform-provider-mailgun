@@ -12,7 +12,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/mailgun/mailgun-go/v4"
+	"github.com/mailgun/mailgun-go/v5"
+	"github.com/mailgun/mailgun-go/v5/mtypes"
 )
 
 // Ensure the implementation satisfies the expected interfaces.
@@ -23,7 +24,7 @@ var (
 
 // DomainsDataSource is the data source implementation.
 type DomainsDataSource struct {
-	client *mailgun.MailgunImpl
+	client *mailgun.Client
 }
 
 // Metadata returns the data source type name.
@@ -42,11 +43,11 @@ func (d *DomainsDataSource) Configure(_ context.Context, req datasource.Configur
 		return
 	}
 
-	client, ok := req.ProviderData.(*mailgun.MailgunImpl)
+	client, ok := req.ProviderData.(*mailgun.Client)
 	if !ok {
 		resp.Diagnostics.AddError(
 			"Unexpected Data Source Configure Type",
-			fmt.Sprintf("Expected *mailgun.MailgunImpl, got: %T. Please report this issue to the provider developers.", req.ProviderData),
+			fmt.Sprintf("Expected *mailgun.Client, got: %T. Please report this issue to the provider developers.", req.ProviderData),
 		)
 		return
 	}
@@ -80,15 +81,15 @@ func (d *DomainsDataSource) Read(ctx context.Context, req datasource.ReadRequest
 		limit = data.Limit.ValueInt64()
 	}
 
-	// Create list options
-	opts := &mailgun.ListOptions{
+	// Create list options (v5 API)
+	opts := &mailgun.ListDomainsOptions{
 		Limit: int(limit),
 	}
 
 	// Get domains from Mailgun API
 	domainsIterator := d.client.ListDomains(opts)
 
-	var domains []mailgun.Domain
+	var domains []mtypes.Domain
 	var domainItems []ItemsValue
 
 	// Collect domains
@@ -96,7 +97,7 @@ func (d *DomainsDataSource) Read(ctx context.Context, req datasource.ReadRequest
 	defer cancel()
 
 	// Get domains
-	var page []mailgun.Domain
+	var page []mtypes.Domain
 	for domainsIterator.Next(ctx, &page) {
 		domains = append(domains, page...)
 	}

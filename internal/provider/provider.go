@@ -9,7 +9,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
-	"github.com/mailgun/mailgun-go/v4"
+	"github.com/mailgun/mailgun-go/v5"
 
 	"github.com/dimoschi/terraform-provider-mailgun/internal/provider/datasource_domains"
 	"github.com/dimoschi/terraform-provider-mailgun/internal/provider/provider_mailgun"
@@ -74,8 +74,8 @@ func (p *mailgunProvider) Configure(ctx context.Context, req provider.ConfigureR
 		endpoint = config.Endpoint.ValueString()
 	}
 
-	// Create Mailgun client
-	mg := mailgun.NewMailgun("", config.ApiKey.ValueString())
+	// Create Mailgun client (v5 API)
+	mg := mailgun.NewMailgun(config.ApiKey.ValueString())
 
 	// Set region if provided
 	if !config.Region.IsNull() {
