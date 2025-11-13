@@ -1,7 +1,7 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) Hack The Box
 // SPDX-License-Identifier: MPL-2.0
 
-package resource_domain
+package domains
 
 import (
 	"context"
@@ -17,8 +17,9 @@ import (
 
 // Ensure the implementation satisfies the expected interfaces.
 var (
-	_ resource.Resource              = &DomainResource{}
-	_ resource.ResourceWithConfigure = &DomainResource{}
+	_ resource.Resource                = &DomainResource{}
+	_ resource.ResourceWithConfigure   = &DomainResource{}
+	_ resource.ResourceWithImportState = &DomainResource{}
 )
 
 // DomainResource is the resource implementation.
@@ -33,10 +34,10 @@ func (r *DomainResource) Metadata(_ context.Context, req resource.MetadataReques
 
 // Schema defines the schema for the resource.
 func (r *DomainResource) Schema(ctx context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
-	resp.Schema = DomainResourceSchema(ctx)
+	resp.Schema = DomainResourceSchema()
 }
 
-// Configure adds the provider configured client to the resource.
+// Configure adds the provider-configured client to the resource.
 func (r *DomainResource) Configure(_ context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
 	if req.ProviderData == nil {
 		return
@@ -132,7 +133,7 @@ func (r *DomainResource) Create(ctx context.Context, req resource.CreateRequest,
 		return
 	}
 
-	// Map response to plan model
+	// Map response to a plan model
 	plan = mapDomainResponseToModel(domainResp, plan)
 
 	// Save data into Terraform state
@@ -183,7 +184,7 @@ func (r *DomainResource) Read(ctx context.Context, req resource.ReadRequest, res
 		return
 	}
 
-	// Map response to state model
+	// Map response to a state model
 	state = mapDomainResponseToModel(domainResp, state)
 
 	// Save updated state
@@ -230,7 +231,7 @@ func (r *DomainResource) Update(ctx context.Context, req resource.UpdateRequest,
 		return
 	}
 
-	// Map response to plan model
+	// Map response to a plan model
 	plan = mapDomainResponseToModel(domainResp, plan)
 
 	// Save updated state
@@ -283,12 +284,61 @@ func (r *DomainResource) Delete(ctx context.Context, req resource.DeleteRequest,
 	// State is automatically removed by Terraform after successful deletion
 }
 
+// ImportState imports an existing domain by name
+func (r *DomainResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	// The ID passed is the domain name
+	domainName := req.ID
+
+	// Validate that client is configured
+	if r.client == nil {
+		resp.Diagnostics.AddError(
+			"Unconfigured Mailgun Client",
+			"The Mailgun client has not been properly configured. "+
+				"Please report this issue to the provider developers.",
+		)
+		return
+	}
+
+	// Create context with timeout
+	importCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	// Get the domain via Mailgun API
+	domainResp, err := r.client.GetDomain(importCtx, domainName, nil)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error Importing Domain",
+			fmt.Sprintf("Could not import domain %s: %s", domainName, err),
+		)
+		return
+	}
+
+	// Create a new model with imported values
+	var state DomainModel
+	state.Name = types.StringValue(domainName)
+	state = mapDomainResponseToModel(domainResp, state)
+
+	// Save imported state
+	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+}
+
 // mapDomainResponseToModel maps Mailgun API response to Terraform model
 func mapDomainResponseToModel(domainResp mtypes.GetDomainResponse, model DomainModel) DomainModel {
-	// Map domain fields
-	domainValue := NewDomainValueMust(model.Domain.AttributeTypes(context.Background()), map[string]attr.Value{
+	ctx := context.Background()
+
+	// Create disabled as null object (SDK doesn't parse this field)
+	disabledAttrTypes := map[string]attr.Type{
+		"code":        types.StringType,
+		"note":        types.StringType,
+		"permanently": types.BoolType,
+		"reason":      types.StringType,
+		"until":       types.StringType,
+	}
+
+	// Map domain fields from SDK response
+	domainValue := NewDomainValueMust(model.Domain.AttributeTypes(ctx), map[string]attr.Value{
 		"created_at":                    types.StringValue(domainResp.Domain.CreatedAt.String()),
-		"disabled":                      NewDisabledValueNull(),
+		"disabled":                      types.ObjectNull(disabledAttrTypes),
 		"id":                            types.StringValue(domainResp.Domain.ID),
 		"is_disabled":                   types.BoolValue(domainResp.Domain.IsDisabled),
 		"name":                          types.StringValue(domainResp.Domain.Name),
@@ -310,9 +360,104 @@ func mapDomainResponseToModel(domainResp mtypes.GetDomainResponse, model DomainM
 	model.Name = types.StringValue(domainResp.Domain.Name)
 	model.UseAutomaticSenderSecurity = types.BoolValue(domainResp.UseAutomaticSenderSecurity)
 
-	// TODO: Map DNS records when needed
-	// model.ReceivingDnsRecords = ...
-	// model.SendingDnsRecords = ...
+	// Map DNS records from response
+	if len(domainResp.ReceivingDNSRecords) > 0 {
+		receivingRecords := make([]ReceivingDnsRecordsValue, len(domainResp.ReceivingDNSRecords))
+		for i, record := range domainResp.ReceivingDNSRecords {
+			cachedList, _ := types.ListValueFrom(ctx, types.StringType, record.Cached)
+			receivingRecords[i] = ReceivingDnsRecordsValue{
+				Cached:     cachedList,
+				IsActive:   types.BoolValue(record.Active),
+				Name:       types.StringValue(record.Name),
+				Priority:   types.StringValue(record.Priority),
+				RecordType: types.StringValue(record.RecordType),
+				Valid:      types.StringValue(record.Valid),
+				Value:      types.StringValue(record.Value),
+				state:      attr.ValueStateKnown,
+			}
+		}
+		receivingList, _ := types.ListValueFrom(ctx, ReceivingDnsRecordsType{
+			ObjectType: types.ObjectType{AttrTypes: ReceivingDnsRecordsValue{}.AttributeTypes(ctx)},
+		}, receivingRecords)
+		model.ReceivingDnsRecords = receivingList
+	} else if model.ReceivingDnsRecords.IsUnknown() {
+		receivingDnsRecordsType := ReceivingDnsRecordsType{
+			ObjectType: types.ObjectType{AttrTypes: ReceivingDnsRecordsValue{}.AttributeTypes(ctx)},
+		}
+		model.ReceivingDnsRecords = types.ListNull(receivingDnsRecordsType)
+	}
+
+	if len(domainResp.SendingDNSRecords) > 0 {
+		sendingRecords := make([]SendingDnsRecordsValue, len(domainResp.SendingDNSRecords))
+		for i, record := range domainResp.SendingDNSRecords {
+			cachedList, _ := types.ListValueFrom(ctx, types.StringType, record.Cached)
+			sendingRecords[i] = SendingDnsRecordsValue{
+				Cached:     cachedList,
+				IsActive:   types.BoolValue(record.Active),
+				Name:       types.StringValue(record.Name),
+				Priority:   types.StringValue(record.Priority),
+				RecordType: types.StringValue(record.RecordType),
+				Valid:      types.StringValue(record.Valid),
+				Value:      types.StringValue(record.Value),
+				state:      attr.ValueStateKnown,
+			}
+		}
+		sendingList, _ := types.ListValueFrom(ctx, SendingDnsRecordsType{
+			ObjectType: types.ObjectType{AttrTypes: SendingDnsRecordsValue{}.AttributeTypes(ctx)},
+		}, sendingRecords)
+		model.SendingDnsRecords = sendingList
+	} else if model.SendingDnsRecords.IsUnknown() {
+		sendingDnsRecordsType := SendingDnsRecordsType{
+			ObjectType: types.ObjectType{AttrTypes: SendingDnsRecordsValue{}.AttributeTypes(ctx)},
+		}
+		model.SendingDnsRecords = types.ListNull(sendingDnsRecordsType)
+	}
+
+	// Set all other fields from plan or to null (SDK doesn't provide them in response)
+	// These are request-only fields that don't come back in the response
+	if model.DkimHostName.IsUnknown() {
+		model.DkimHostName = types.StringNull()
+	}
+	if model.DkimKeySize.IsUnknown() {
+		model.DkimKeySize = types.StringNull()
+	}
+	if model.DkimSelector.IsUnknown() {
+		model.DkimSelector = types.StringNull()
+	}
+	if model.EncryptIncomingMessage.IsUnknown() {
+		model.EncryptIncomingMessage = types.BoolNull()
+	}
+	if model.ForceDkimAuthority.IsUnknown() {
+		model.ForceDkimAuthority = types.BoolNull()
+	}
+	if model.ForceRootDkimHost.IsUnknown() {
+		model.ForceRootDkimHost = types.BoolNull()
+	}
+	if model.Hextended.IsUnknown() {
+		model.Hextended = types.BoolNull()
+	}
+	if model.HwithDns.IsUnknown() {
+		model.HwithDns = types.BoolNull()
+	}
+	if model.Ips.IsUnknown() {
+		model.Ips = types.StringNull()
+	}
+	if model.Message.IsUnknown() {
+		model.Message = types.StringNull()
+	}
+	if model.PoolId.IsUnknown() {
+		model.PoolId = types.StringNull()
+	}
+	// DNS records already mapped above
+	if model.SmtpPassword.IsUnknown() {
+		model.SmtpPassword = types.StringNull()
+	}
+	if model.WebPrefix.IsUnknown() {
+		model.WebPrefix = types.StringNull()
+	}
+	if model.WebScheme.IsUnknown() {
+		model.WebScheme = types.StringNull()
+	}
 
 	return model
 }

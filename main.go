@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) Hack The Box
 // SPDX-License-Identifier: MPL-2.0
 
 package main

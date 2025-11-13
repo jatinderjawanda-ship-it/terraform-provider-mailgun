@@ -1,0 +1,4 @@
+# Copy this file to terraform.tfvars and fill in your values
+mailgun_api_key = "key-your-mailgun-api-key"
+domain_name     = "test.example.com"
+smtp_password   = "your-secure-password"

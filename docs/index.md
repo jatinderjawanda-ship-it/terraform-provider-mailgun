@@ -3,12 +3,12 @@
 page_title: "mailgun Provider"
 subcategory: ""
 description: |-
-  
+  Terraform provider for managing Mailgun resources
 ---
 
 # mailgun Provider
 
-
+Terraform provider for managing Mailgun resources
 
 
 
@@ -17,9 +17,9 @@ description: |-
 
 ### Required
 
-- `api_key` (String) The API key for Mailgun
+- `api_key` (String, Sensitive) Mailgun API key for authentication. Can also be set via MAILGUN_API_KEY environment variable.
 
 ### Optional
 
-- `endpoint` (String) The Mailgun API endpoint (default https://api.mailgun.net)
-- `region` (String) The Mailgun region (US or EU)
+- `endpoint` (String) Custom Mailgun API endpoint. Overrides region setting.
+- `region` (String) Mailgun API region. Valid values: 'US' (default) or 'EU'.

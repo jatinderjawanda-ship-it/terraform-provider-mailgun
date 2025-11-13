@@ -1,7 +1,7 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) Hack The Box
 // SPDX-License-Identifier: MPL-2.0
 
-package datasource_domains
+package domains
 
 import (
 	"context"
@@ -18,27 +18,27 @@ import (
 
 // Ensure the implementation satisfies the expected interfaces.
 var (
-	_ datasource.DataSource              = &DomainsDataSource{}
-	_ datasource.DataSourceWithConfigure = &DomainsDataSource{}
+	_ datasource.DataSource              = &DataSource{}
+	_ datasource.DataSourceWithConfigure = &DataSource{}
 )
 
-// DomainsDataSource is the data source implementation.
-type DomainsDataSource struct {
+// DataSource is the data source implementation.
+type DataSource struct {
 	client *mailgun.Client
 }
 
 // Metadata returns the data source type name.
-func (d *DomainsDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
+func (d *DataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_domains"
 }
 
 // Schema defines the schema for the data source.
-func (d *DomainsDataSource) Schema(ctx context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
-	resp.Schema = DomainsDataSourceSchema(ctx)
+func (d *DataSource) Schema(ctx context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+	resp.Schema = DomainsDataSourceSchema()
 }
 
-// Configure adds the provider configured client to the data source.
-func (d *DomainsDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
+// Configure adds the provider-configured client to the data source.
+func (d *DataSource) Configure(_ context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
 	if req.ProviderData == nil {
 		return
 	}
@@ -56,7 +56,7 @@ func (d *DomainsDataSource) Configure(_ context.Context, req datasource.Configur
 }
 
 // Read refreshes the Terraform state with the latest data.
-func (d *DomainsDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
+func (d *DataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
 	var data DomainsModel
 
 	// Read Terraform configuration data into the model
@@ -65,7 +65,7 @@ func (d *DomainsDataSource) Read(ctx context.Context, req datasource.ReadRequest
 		return
 	}
 
-	// If client is not configured, return
+	// If a client is not configured, return
 	if d.client == nil {
 		resp.Diagnostics.AddError(
 			"Unconfigured Mailgun Client",

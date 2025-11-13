@@ -1,4 +1,4 @@
-// Copyright (c) HashiCorp, Inc.
+// Copyright (c) Hack The Box
 // SPDX-License-Identifier: MPL-2.0
 
 package provider
@@ -8,12 +8,12 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
+	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/mailgun/mailgun-go/v5"
 
-	"github.com/dimoschi/terraform-provider-mailgun/internal/provider/datasource_domains"
-	"github.com/dimoschi/terraform-provider-mailgun/internal/provider/provider_mailgun"
-	"github.com/dimoschi/terraform-provider-mailgun/internal/provider/resource_domain"
+	"github.com/dimoschi/terraform-provider-mailgun/internal/provider/domains"
 )
 
 // Ensure the implementation satisfies the expected interfaces.
@@ -38,6 +38,13 @@ type mailgunProvider struct {
 	version string
 }
 
+// mailgunProviderModel describes the provider configuration.
+type mailgunProviderModel struct {
+	ApiKey   types.String `tfsdk:"api_key"`
+	Region   types.String `tfsdk:"region"`
+	Endpoint types.String `tfsdk:"endpoint"`
+}
+
 // Metadata returns the provider type name.
 func (p *mailgunProvider) Metadata(_ context.Context, _ provider.MetadataRequest, resp *provider.MetadataResponse) {
 	resp.TypeName = "mailgun"
@@ -45,13 +52,30 @@ func (p *mailgunProvider) Metadata(_ context.Context, _ provider.MetadataRequest
 }
 
 // Schema defines the provider-level schema for configuration data.
-func (p *mailgunProvider) Schema(ctx context.Context, _ provider.SchemaRequest, resp *provider.SchemaResponse) {
-	resp.Schema = provider_mailgun.MailgunProviderSchema(ctx)
+func (p *mailgunProvider) Schema(_ context.Context, _ provider.SchemaRequest, resp *provider.SchemaResponse) {
+	resp.Schema = schema.Schema{
+		Description: "Terraform provider for managing Mailgun resources",
+		Attributes: map[string]schema.Attribute{
+			"api_key": schema.StringAttribute{
+				Description: "Mailgun API key for authentication. Can also be set via MAILGUN_API_KEY environment variable.",
+				Required:    true,
+				Sensitive:   true,
+			},
+			"region": schema.StringAttribute{
+				Description: "Mailgun API region. Valid values: 'US' (default) or 'EU'.",
+				Optional:    true,
+			},
+			"endpoint": schema.StringAttribute{
+				Description: "Custom Mailgun API endpoint. Overrides region setting.",
+				Optional:    true,
+			},
+		},
+	}
 }
 
 // Configure prepares a Mailgun API client for data sources and resources.
 func (p *mailgunProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
-	var config provider_mailgun.MailgunModel
+	var config mailgunProviderModel
 
 	resp.Diagnostics.Append(req.Config.Get(ctx, &config)...)
 	if resp.Diagnostics.HasError() {
@@ -99,19 +123,18 @@ func (p *mailgunProvider) Configure(ctx context.Context, req provider.ConfigureR
 // DataSources defines the data sources implemented in the provider.
 func (p *mailgunProvider) DataSources(_ context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
-		// Add data sources here
-		func() datasource.DataSource {
-			return &datasource_domains.DomainsDataSource{}
-		},
+		domains.NewDomainsDataSource,
 	}
 }
 
 // Resources defines the resources implemented in the provider.
 func (p *mailgunProvider) Resources(_ context.Context) []func() resource.Resource {
 	return []func() resource.Resource{
-		// Add resources here
-		func() resource.Resource {
-			return &resource_domain.DomainResource{}
-		},
+		domains.NewDomainResource,
+		// TODO: Add other resources as they are implemented
+		// webhooks.NewWebhookResource,
+		// smtp_credentials.NewSmtpCredentialResource,
+		// routes.NewRouteResource,
+		// api_keys.NewApiKeyResource,
 	}
 }
