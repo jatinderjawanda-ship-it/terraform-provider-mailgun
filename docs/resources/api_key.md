@@ -1,6 +1,6 @@
 ---
 page_title: "mailgun_api_key Resource - mailgun"
-subcategory: "Credentials"
+subcategory: "Keys"
 description: |-
   Manages a Mailgun API key. API keys provide programmatic access to Mailgun services.
 ---

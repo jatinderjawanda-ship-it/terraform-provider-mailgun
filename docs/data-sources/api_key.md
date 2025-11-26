@@ -1,6 +1,6 @@
 ---
 page_title: "mailgun_api_key Data Source - mailgun"
-subcategory: "Credentials"
+subcategory: "Keys"
 description: |-
   Retrieves information about a specific Mailgun API key.
 ---
