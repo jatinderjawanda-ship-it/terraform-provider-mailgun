@@ -10,35 +10,33 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
-	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/mailgun/mailgun-go/v5"
-	"github.com/mailgun/mailgun-go/v5/mtypes"
 )
 
 // Ensure the implementation satisfies the expected interfaces.
 var (
-	_ datasource.DataSource              = &DataSource{}
-	_ datasource.DataSourceWithConfigure = &DataSource{}
+	_ datasource.DataSource              = &DomainDataSource{}
+	_ datasource.DataSourceWithConfigure = &DomainDataSource{}
 )
 
-// DataSource is the data source implementation.
-type DataSource struct {
+// DomainDataSource is the single domain data source implementation.
+type DomainDataSource struct {
 	client *mailgun.Client
 }
 
 // Metadata returns the data source type name.
-func (d *DataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + "_domains"
+func (d *DomainDataSource) Metadata(_ context.Context, req datasource.MetadataRequest, resp *datasource.MetadataResponse) {
+	resp.TypeName = req.ProviderTypeName + "_domain"
 }
 
 // Schema defines the schema for the data source.
-func (d *DataSource) Schema(ctx context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
-	resp.Schema = DomainsDataSourceSchema()
+func (d *DomainDataSource) Schema(ctx context.Context, _ datasource.SchemaRequest, resp *datasource.SchemaResponse) {
+	resp.Schema = DomainDataSourceSchema()
 }
 
 // Configure adds the provider-configured client to the data source.
-func (d *DataSource) Configure(_ context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
+func (d *DomainDataSource) Configure(_ context.Context, req datasource.ConfigureRequest, resp *datasource.ConfigureResponse) {
 	if req.ProviderData == nil {
 		return
 	}
@@ -56,8 +54,8 @@ func (d *DataSource) Configure(_ context.Context, req datasource.ConfigureReques
 }
 
 // Read refreshes the Terraform state with the latest data.
-func (d *DataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
-	var data DomainsModel
+func (d *DomainDataSource) Read(ctx context.Context, req datasource.ReadRequest, resp *datasource.ReadResponse) {
+	var data DomainDataSourceModel
 
 	// Read Terraform configuration data into the model
 	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
@@ -75,152 +73,99 @@ func (d *DataSource) Read(ctx context.Context, req datasource.ReadRequest, resp 
 		return
 	}
 
-	// Set default values for optional parameters
-	limit := int64(100)
-	if !data.Limit.IsNull() {
-		limit = data.Limit.ValueInt64()
-	}
-
-	// Create list options (v5 API)
-	opts := &mailgun.ListDomainsOptions{
-		Limit: int(limit),
-	}
-
-	// Get domains from Mailgun API
-	domainsIterator := d.client.ListDomains(opts)
-
-	var domains []mtypes.Domain
-	var domainItems []ItemsValue
-
-	// Collect domains
-	ctx, cancel := context.WithTimeout(ctx, time.Second*30)
-	defer cancel()
-
-	// Get domains
-	var page []mtypes.Domain
-	for domainsIterator.Next(ctx, &page) {
-		domains = append(domains, page...)
-	}
-
-	// Check for errors
-	if err := domainsIterator.Err(); err != nil {
+	domainName := data.Name.ValueString()
+	if domainName == "" {
 		resp.Diagnostics.AddError(
-			"Error Listing Domains",
-			fmt.Sprintf("Unable to list domains: %s", err),
+			"Missing Domain Name",
+			"The domain name is required to lookup a domain.",
 		)
 		return
 	}
 
-	// Convert domains to Terraform model
-	for _, domain := range domains {
-		// Create disabled object with null values
-		disabledObj := NewDisabledValueNull()
+	// Create context with timeout
+	readCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
 
-		// Convert disabled object to ObjectValue
-		disabledObjValue, diags := disabledObj.ToObjectValue(ctx)
-		resp.Diagnostics.Append(diags...)
-		if resp.Diagnostics.HasError() {
-			return
-		}
-
-		// Format created at time
-		createdAt := domain.CreatedAt.String()
-
-		// Create domain item
-		item := ItemsValue{
-			CreatedAt:                  types.StringValue(createdAt),
-			Disabled:                   disabledObjValue,
-			Id:                         types.StringValue(domain.Name), // Using name as ID
-			IsDisabled:                 types.BoolValue(false),         // Default value
-			Name:                       types.StringValue(domain.Name),
-			RequireTls:                 types.BoolValue(false), // Default value
-			SkipVerification:           types.BoolValue(false), // Default value
-			SmtpLogin:                  types.StringValue(domain.SMTPLogin),
-			SmtpPassword:               types.StringValue(domain.SMTPPassword),
-			SpamAction:                 types.StringValue(string(domain.SpamAction)),
-			State:                      types.StringValue(domain.State),
-			TrackingHost:               types.StringValue(""),  // Default value
-			ItemsType:                  types.StringValue(""),  // Default value
-			UseAutomaticSenderSecurity: types.BoolValue(false), // Default value
-			WebPrefix:                  types.StringValue(""),  // Default value
-			WebScheme:                  types.StringValue(domain.WebScheme),
-			Wildcard:                   types.BoolValue(domain.Wildcard),
-			state:                      attr.ValueStateKnown,
-		}
-
-		domainItems = append(domainItems, item)
-	}
-
-	// Convert domain items to List
-	itemsList, diags := convertItemsToList(ctx, domainItems)
-	resp.Diagnostics.Append(diags...)
-	if resp.Diagnostics.HasError() {
+	// Get the domain via Mailgun API
+	domainResp, err := d.client.GetDomain(readCtx, domainName, nil)
+	if err != nil {
+		resp.Diagnostics.AddError(
+			"Error Reading Domain",
+			fmt.Sprintf("Could not read domain %s: %s", domainName, err),
+		)
 		return
 	}
 
-	// Set values in the data model
-	data.Items = itemsList
-	data.TotalCount = types.Int64Value(int64(len(domains)))
+	// Map response to data source model
+	data.CreatedAt = types.StringValue(domainResp.Domain.CreatedAt.String())
+	data.Id = types.StringValue(domainResp.Domain.ID)
+	data.IsDisabled = types.BoolValue(domainResp.Domain.IsDisabled)
+	data.RequireTls = types.BoolValue(domainResp.Domain.RequireTLS)
+	data.SkipVerification = types.BoolValue(domainResp.Domain.SkipVerification)
+	data.SmtpLogin = types.StringValue(domainResp.Domain.SMTPLogin)
+	data.SmtpPassword = types.StringValue(domainResp.Domain.SMTPPassword)
+	data.SpamAction = types.StringValue(string(domainResp.Domain.SpamAction))
+	data.State = types.StringValue(domainResp.Domain.State)
+	data.TrackingHost = types.StringValue(domainResp.Domain.TrackingHost)
+	data.DomainType = types.StringValue(domainResp.Domain.Type)
+	data.UseAutomaticSenderSecurity = types.BoolValue(domainResp.Domain.UseAutomaticSenderSecurity)
+	data.WebPrefix = types.StringValue(domainResp.Domain.WebPrefix)
+	data.WebScheme = types.StringValue(domainResp.Domain.WebScheme)
+	data.Wildcard = types.BoolValue(domainResp.Domain.Wildcard)
 
-	// Set default values for optional parameters that weren't set
-	if data.Authority.IsNull() {
-		data.Authority = types.StringValue("")
+	// Map DNS records from response
+	if len(domainResp.ReceivingDNSRecords) > 0 {
+		receivingRecords := make([]ReceivingDnsRecordsValue, len(domainResp.ReceivingDNSRecords))
+		for i, record := range domainResp.ReceivingDNSRecords {
+			cachedList, _ := types.ListValueFrom(ctx, types.StringType, record.Cached)
+			receivingRecords[i] = ReceivingDnsRecordsValue{
+				Cached:     cachedList,
+				IsActive:   types.BoolValue(record.Active),
+				Name:       types.StringValue(record.Name),
+				Priority:   types.StringValue(record.Priority),
+				RecordType: types.StringValue(record.RecordType),
+				Valid:      types.StringValue(record.Valid),
+				Value:      types.StringValue(record.Value),
+				state:      attr.ValueStateKnown,
+			}
+		}
+		receivingList, _ := types.ListValueFrom(ctx, ReceivingDnsRecordsType{
+			ObjectType: types.ObjectType{AttrTypes: ReceivingDnsRecordsValue{}.AttributeTypes(ctx)},
+		}, receivingRecords)
+		data.ReceivingDnsRecords = receivingList
+	} else {
+		receivingDnsRecordsType := ReceivingDnsRecordsType{
+			ObjectType: types.ObjectType{AttrTypes: ReceivingDnsRecordsValue{}.AttributeTypes(ctx)},
+		}
+		data.ReceivingDnsRecords = types.ListNull(receivingDnsRecordsType)
 	}
-	if data.IncludeSubaccounts.IsNull() {
-		data.IncludeSubaccounts = types.BoolValue(false)
-	}
-	if data.Limit.IsNull() {
-		data.Limit = types.Int64Value(limit)
-	}
-	if data.Search.IsNull() {
-		data.Search = types.StringValue("")
-	}
-	if data.Skip.IsNull() {
-		data.Skip = types.Int64Value(0)
-	}
-	if data.Sort.IsNull() {
-		data.Sort = types.StringValue("")
-	}
-	if data.State.IsNull() {
-		data.State = types.StringValue("")
+
+	if len(domainResp.SendingDNSRecords) > 0 {
+		sendingRecords := make([]SendingDnsRecordsValue, len(domainResp.SendingDNSRecords))
+		for i, record := range domainResp.SendingDNSRecords {
+			cachedList, _ := types.ListValueFrom(ctx, types.StringType, record.Cached)
+			sendingRecords[i] = SendingDnsRecordsValue{
+				Cached:     cachedList,
+				IsActive:   types.BoolValue(record.Active),
+				Name:       types.StringValue(record.Name),
+				Priority:   types.StringValue(record.Priority),
+				RecordType: types.StringValue(record.RecordType),
+				Valid:      types.StringValue(record.Valid),
+				Value:      types.StringValue(record.Value),
+				state:      attr.ValueStateKnown,
+			}
+		}
+		sendingList, _ := types.ListValueFrom(ctx, SendingDnsRecordsType{
+			ObjectType: types.ObjectType{AttrTypes: SendingDnsRecordsValue{}.AttributeTypes(ctx)},
+		}, sendingRecords)
+		data.SendingDnsRecords = sendingList
+	} else {
+		sendingDnsRecordsType := SendingDnsRecordsType{
+			ObjectType: types.ObjectType{AttrTypes: SendingDnsRecordsValue{}.AttributeTypes(ctx)},
+		}
+		data.SendingDnsRecords = types.ListNull(sendingDnsRecordsType)
 	}
 
 	// Save data into Terraform state
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
-}
-
-// Helper function to convert ItemsValue slice to types.List.
-func convertItemsToList(ctx context.Context, items []ItemsValue) (types.List, diag.Diagnostics) {
-	var diags diag.Diagnostics
-
-	// If no items, return empty list
-	if len(items) == 0 {
-		return types.ListNull(types.ObjectType{
-			AttrTypes: ItemsValue{}.AttributeTypes(ctx),
-		}), diags
-	}
-
-	// Convert each item to ObjectValue
-	objectValues := make([]attr.Value, 0, len(items))
-	for _, item := range items {
-		objValue, objDiags := item.ToObjectValue(ctx)
-		diags.Append(objDiags...)
-		if diags.HasError() {
-			return types.ListNull(types.ObjectType{
-				AttrTypes: ItemsValue{}.AttributeTypes(ctx),
-			}), diags
-		}
-		objectValues = append(objectValues, objValue)
-	}
-
-	// Create list from object values
-	listValue, listDiags := types.ListValue(
-		types.ObjectType{
-			AttrTypes: ItemsValue{}.AttributeTypes(ctx),
-		},
-		objectValues,
-	)
-	diags.Append(listDiags...)
-
-	return listValue, diags
 }

@@ -1,86 +1,71 @@
-# Domains Package
+# Domains Package - Provider Structure Reference
 
-This package implements the Mailgun domain resource and domains data source for the Terraform Mailgun provider.
+This package implements the Mailgun domains resource and data sources following the **Cloudflare Provider Pattern** - a best practice structure adopted by top-tier Terraform providers.
 
-## Files
+## 📁 File Structure
 
-- **resource.go** - Full CRUD implementation for the `mailgun_domain` resource
-  - Create: Creates a new domain with configurable spam action, wildcard, DKIM settings, etc.
-  - Read: Fetches domain state from Mailgun API
-  - Update: Updates domain configuration (limited by Mailgun API)
-  - Delete: Removes the domain from Mailgun
-  - Import: Supports `terraform import` by domain name
-
-- **data_source.go** - Implementation for the `mailgun_domains` data source
-  - Lists all domains in the Mailgun account
-  - Supports filtering with limit, skip, search, and other parameters
-
-- **schema.go** - Terraform schema definitions
-  - DomainResourceSchema: Defines all input and computed attributes for the resource
-  - DomainsDataSourceSchema: Defines all attributes for the data source
-  - Includes nested objects for domain details and DNS records
-
-- **model.go** - Go structs for Terraform state management
-  - DomainModel: State model for domain resource
-  - DomainsModel: State model for domains data source
-  - Custom value types for complex nested objects (DomainValue, ItemsValue, etc.)
-
-- **resource_test.go** - Acceptance tests for domain resource
-  - Tests basic CRUD operations
-  - Tests wildcard domains
-  - Tests import functionality
-
-- **data_source_test.go** - Acceptance tests for domains data source
-  - Tests basic data fetching
-  - Tests with limit parameter
-
-- **helpers_test.go** - Test utilities and provider factories
-
-## Running Tests
-
-### Unit Tests
-```bash
-make test
+```
+domains/
+├── resource.go                    # Domain resource CRUD implementation
+├── resource_model.go              # Resource Terraform models
+├── resource_schema.go             # Resource schema definitions
+├── resource_test.go               # Resource tests (unit + acceptance)
+│
+├── data_source.go                 # Single domain lookup (by name)
+├── data_source_model.go           # Single domain data source model
+├── data_source_schema.go          # Single domain schema
+│
+├── list_data_source.go            # List all domains
+├── list_data_source_model.go      # List data source model
+├── list_data_source_schema.go     # List schema with filtering
+├── data_source_test.go            # Data source tests (unit + acceptance)
+│
+└── README.md                      # This file
 ```
 
-### Acceptance Tests
-Acceptance tests require a valid Mailgun API key:
+## 🎯 Key Principles
 
-```bash
-export MAILGUN_API_KEY="your-api-key-here"
-make testacc
-```
+### 1. Separation of Concerns
+Each file has a single, clear responsibility:
+- **Models**: Terraform state structure
+- **Schemas**: Terraform configuration definitions
+- **Implementation**: Business logic (CRUD operations, API calls)
 
-**Warning**: Acceptance tests create real Mailgun domains and may incur costs.
+### 2. Single vs. List Data Sources
+Following Cloudflare's pattern, we separate:
+- **Single resource lookup**: `mailgun_domain` - Fetch ONE domain by name
+- **List resources**: `mailgun_domains` - Fetch MULTIPLE domains with filtering/pagination
 
-## Usage Examples
+### 3. Consistent Naming
+- **Resource**: `DomainResource`, `DomainModel`, `DomainResourceSchema()`
+- **Single Data Source**: `DomainDataSource`, `DomainDataSourceModel`, `DomainDataSourceSchema()`
+- **List Data Source**: `ListDataSource`, `DomainsModel`, `DomainsListDataSourceSchema()`
 
-### Resource
-```hcl
-resource "mailgun_domain" "example" {
-  name                         = "example.com"
-  spam_action                  = "disabled"
-  wildcard                     = true
-  force_dkim_authority         = true
-  dkim_key_size                = "2048"
-  use_automatic_sender_security = true
-}
-```
+## ✅ Checklist for New Resources
 
-### Data Source
-```hcl
-data "mailgun_domains" "all" {
-  limit = 100
-}
+When implementing a new resource (e.g., `webhooks`), create:
 
-output "domain_count" {
-  value = data.mailgun_domains.all.total_count
-}
-```
+- [ ] `webhooks/resource.go` - CRUD implementation
+- [ ] `webhooks/resource_model.go` - WebhookModel + nested types
+- [ ] `webhooks/resource_schema.go` - Schema + NewWebhookResource()
+- [ ] `webhooks/resource_test.go` - Unit + acceptance tests
+- [ ] `webhooks/data_source.go` - Single webhook lookup (if needed)
+- [ ] `webhooks/data_source_model.go` - WebhookDataSourceModel (if needed)
+- [ ] `webhooks/data_source_schema.go` - Schema + NewWebhookDataSource() (if needed)
+- [ ] `webhooks/list_data_source.go` - List webhooks (if needed)
+- [ ] `webhooks/list_data_source_model.go` - WebhooksModel + ItemsValue (if needed)
+- [ ] `webhooks/list_data_source_schema.go` - Schema + NewWebhooksListDataSource() (if needed)
+- [ ] `webhooks/data_source_test.go` - Data source tests (if applicable)
+- [ ] Register in `internal/provider/provider.go`
 
-## Implementation Notes
+## 🎓 Why This Pattern?
 
-- All code is manually implemented using the `mailgun-go/v5` SDK
-- DNS records (receiving and sending) are automatically populated as computed attributes
-- The domain resource is mostly immutable after creation; updates may require recreation
-- Import is supported using the domain name as the identifier
+1. **Maintainability**: Each file is focused and easy to understand
+2. **Scalability**: Adding new resources follows a clear template
+3. **Testability**: Unit tests can target specific components
+4. **Industry Standard**: Matches Cloudflare and other top providers
+5. **Clear Boundaries**: Schema, model, and logic are cleanly separated
+
+---
+
+**Use this structure for all future resources!**

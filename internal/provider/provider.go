@@ -105,13 +105,25 @@ func (p *mailgunProvider) Configure(ctx context.Context, req provider.ConfigureR
 	if !config.Region.IsNull() {
 		region := config.Region.ValueString()
 		if region == "EU" {
-			mg.SetAPIBase("https://api.eu.mailgun.net/v3")
+			if err := mg.SetAPIBase("https://api.eu.mailgun.net/v3"); err != nil {
+				resp.Diagnostics.AddError(
+					"Failed to Set API Base for EU Region",
+					"Could not configure the Mailgun client for EU region: "+err.Error(),
+				)
+				return
+			}
 		}
 	}
 
 	// If endpoint is provided, override the API base
 	if !config.Endpoint.IsNull() {
-		mg.SetAPIBase(endpoint)
+		if err := mg.SetAPIBase(endpoint); err != nil {
+			resp.Diagnostics.AddError(
+				"Failed to Set Custom API Endpoint",
+				"Could not configure the Mailgun client with custom endpoint: "+err.Error(),
+			)
+			return
+		}
 	}
 
 	// Make the Mailgun client available during DataSource and Resource
@@ -123,7 +135,8 @@ func (p *mailgunProvider) Configure(ctx context.Context, req provider.ConfigureR
 // DataSources defines the data sources implemented in the provider.
 func (p *mailgunProvider) DataSources(_ context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
-		domains.NewDomainsDataSource,
+		domains.NewDomainDataSource,      // Single domain lookup by name
+		domains.NewDomainsListDataSource, // List all domains
 	}
 }
 

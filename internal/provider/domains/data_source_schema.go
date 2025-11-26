@@ -1,0 +1,163 @@
+// Copyright (c) Hack The Box
+// SPDX-License-Identifier: MPL-2.0
+
+package domains
+
+import (
+	"github.com/hashicorp/terraform-plugin-framework/datasource"
+	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/types"
+)
+
+// DomainDataSourceSchema returns the schema for the single domain data source
+func DomainDataSourceSchema() schema.Schema {
+	return schema.Schema{
+		Description: "Retrieves information about a specific Mailgun domain by name.",
+		Attributes: map[string]schema.Attribute{
+			"name": schema.StringAttribute{
+				Description: "The domain name to lookup.",
+				Required:    true,
+			},
+			"created_at": schema.StringAttribute{
+				Description: "Time the domain was created.",
+				Computed:    true,
+			},
+			"id": schema.StringAttribute{
+				Description: "Domain ID.",
+				Computed:    true,
+			},
+			"is_disabled": schema.BoolAttribute{
+				Description: "Whether the domain is disabled.",
+				Computed:    true,
+			},
+			"require_tls": schema.BoolAttribute{
+				Description: "Whether TLS is required.",
+				Computed:    true,
+			},
+			"skip_verification": schema.BoolAttribute{
+				Description: "Whether to skip verification.",
+				Computed:    true,
+			},
+			"smtp_login": schema.StringAttribute{
+				Description: "SMTP login username.",
+				Computed:    true,
+			},
+			"smtp_password": schema.StringAttribute{
+				Description: "SMTP password.",
+				Computed:    true,
+				Sensitive:   true,
+			},
+			"spam_action": schema.StringAttribute{
+				Description: "Spam action setting.",
+				Computed:    true,
+			},
+			"state": schema.StringAttribute{
+				Description: "Domain state (e.g., active, unverified).",
+				Computed:    true,
+			},
+			"tracking_host": schema.StringAttribute{
+				Description: "Tracking host.",
+				Computed:    true,
+			},
+			"type": schema.StringAttribute{
+				Description: "Domain type.",
+				Computed:    true,
+			},
+			"use_automatic_sender_security": schema.BoolAttribute{
+				Description: "Whether automatic sender security is enabled.",
+				Computed:    true,
+			},
+			"web_prefix": schema.StringAttribute{
+				Description: "Web prefix for tracking.",
+				Computed:    true,
+			},
+			"web_scheme": schema.StringAttribute{
+				Description: "Web scheme (http or https).",
+				Computed:    true,
+			},
+			"wildcard": schema.BoolAttribute{
+				Description: "Whether wildcard is enabled.",
+				Computed:    true,
+			},
+			"receiving_dns_records": schema.ListNestedAttribute{
+				Description: "DNS records for receiving email.",
+				Computed:    true,
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"cached": schema.ListAttribute{
+							Description: "Cached DNS values.",
+							ElementType: types.StringType,
+							Computed:    true,
+						},
+						"is_active": schema.BoolAttribute{
+							Description: "Whether the DNS record is active.",
+							Computed:    true,
+						},
+						"name": schema.StringAttribute{
+							Description: "DNS record name.",
+							Computed:    true,
+						},
+						"priority": schema.StringAttribute{
+							Description: "DNS record priority.",
+							Computed:    true,
+						},
+						"record_type": schema.StringAttribute{
+							Description: "DNS record type.",
+							Computed:    true,
+						},
+						"valid": schema.StringAttribute{
+							Description: "Whether the DNS record is valid.",
+							Computed:    true,
+						},
+						"value": schema.StringAttribute{
+							Description: "DNS record value.",
+							Computed:    true,
+						},
+					},
+				},
+			},
+			"sending_dns_records": schema.ListNestedAttribute{
+				Description: "DNS records for sending email.",
+				Computed:    true,
+				NestedObject: schema.NestedAttributeObject{
+					Attributes: map[string]schema.Attribute{
+						"cached": schema.ListAttribute{
+							Description: "Cached DNS values.",
+							ElementType: types.StringType,
+							Computed:    true,
+						},
+						"is_active": schema.BoolAttribute{
+							Description: "Whether the DNS record is active.",
+							Computed:    true,
+						},
+						"name": schema.StringAttribute{
+							Description: "DNS record name.",
+							Computed:    true,
+						},
+						"priority": schema.StringAttribute{
+							Description: "DNS record priority.",
+							Computed:    true,
+						},
+						"record_type": schema.StringAttribute{
+							Description: "DNS record type.",
+							Computed:    true,
+						},
+						"valid": schema.StringAttribute{
+							Description: "Whether the DNS record is valid.",
+							Computed:    true,
+						},
+						"value": schema.StringAttribute{
+							Description: "DNS record value.",
+							Computed:    true,
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+// NewDomainDataSource creates a new single domain data source
+func NewDomainDataSource() datasource.DataSource {
+	return &DomainDataSource{}
+}

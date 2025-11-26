@@ -1,0 +1,6 @@
+# Copy this file to terraform.tfvars and fill in your values
+
+mailgun_api_key        = "your-mailgun-api-key-here"
+mailgun_region         = "US"  # or "EU"
+domain_name            = "example.com"
+advanced_domain_name   = "advanced.example.com"
