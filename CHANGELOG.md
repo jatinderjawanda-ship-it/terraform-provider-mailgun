@@ -1,4 +1,12 @@
-## 0.2.0 (Unreleased)
+## 0.2.1 (Unreleased)
+
+DOCUMENTATION:
+
+* Add Example Usage sections to all resource and data source documentation
+* Add Import sections with shell command examples for all resources
+* Update documentation templates to support multiple import formats
+
+## 0.2.0
 
 FEATURES:
 
