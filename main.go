@@ -10,7 +10,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 
-	"github.com/dimoschi/terraform-provider-mailgun/internal/provider"
+	"github.com/hackthebox/terraform-provider-mailgun/internal/provider"
 )
 
 var (
@@ -30,7 +30,7 @@ func main() {
 
 	opts := providerserver.ServeOpts{
 		// Provider address updated to match the new module name
-		Address: "registry.terraform.io/dimoschi/mailgun",
+		Address: "registry.terraform.io/hackthebox/mailgun",
 		Debug:   debug,
 	}
 

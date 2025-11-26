@@ -4,7 +4,6 @@
 package domains_test
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"testing"
@@ -13,14 +12,14 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 
-	"github.com/dimoschi/terraform-provider-mailgun/internal/provider/domains"
-	"github.com/dimoschi/terraform-provider-mailgun/internal/provider/test_helpers"
+	"github.com/hackthebox/terraform-provider-mailgun/internal/provider/domains"
+	"github.com/hackthebox/terraform-provider-mailgun/internal/provider/test_helpers"
 )
 
 // Unit Tests - These tests don't require external API calls
 
 func TestItemsValue_AttributeTypes(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	itemValue := domains.ItemsValue{}
 	attrTypes := itemValue.AttributeTypes(ctx)
 
@@ -64,7 +63,7 @@ func TestItemsValue_AttributeTypes(t *testing.T) {
 }
 
 func TestItemsValue_ToObjectValue(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	disabledObj := types.ObjectNull(map[string]attr.Type{
 		"code":        types.StringType,
@@ -123,7 +122,7 @@ func TestItemsValue_ToObjectValue(t *testing.T) {
 
 func TestDomainsModel_Structure(t *testing.T) {
 	// Test that DomainsModel can be instantiated with proper types
-	ctx := context.Background()
+	ctx := t.Context()
 
 	model := domains.DomainsModel{
 		Authority:          types.StringValue(""),
@@ -182,7 +181,7 @@ func TestDomainsListDataSourceSchema_HasRequiredFields(t *testing.T) {
 func TestConvertItemsToList_EmptyList(t *testing.T) {
 	// This tests the behavior of an empty domain items list
 	// Note: convertItemsToList is not exported, so we test indirectly
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create an empty list
 	emptyList := types.ListNull(types.ObjectType{
@@ -195,7 +194,7 @@ func TestConvertItemsToList_EmptyList(t *testing.T) {
 }
 
 func TestConvertItemsToList_WithItems(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	disabledObj := types.ObjectNull(map[string]attr.Type{
 		"code":        types.StringType,
