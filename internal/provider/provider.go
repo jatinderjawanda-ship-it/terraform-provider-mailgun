@@ -13,11 +13,18 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/mailgun/mailgun-go/v5"
 
+	"github.com/hackthebox/terraform-provider-mailgun/internal/provider/domain_dkim_key"
+	"github.com/hackthebox/terraform-provider-mailgun/internal/provider/domain_ip"
 	"github.com/hackthebox/terraform-provider-mailgun/internal/provider/domain_sending_keys"
+	"github.com/hackthebox/terraform-provider-mailgun/internal/provider/domain_tracking"
 	"github.com/hackthebox/terraform-provider-mailgun/internal/provider/domains"
 	"github.com/hackthebox/terraform-provider-mailgun/internal/provider/ip_allowlist"
+	"github.com/hackthebox/terraform-provider-mailgun/internal/provider/mailing_list_members"
+	"github.com/hackthebox/terraform-provider-mailgun/internal/provider/mailing_lists"
 	"github.com/hackthebox/terraform-provider-mailgun/internal/provider/routes"
 	"github.com/hackthebox/terraform-provider-mailgun/internal/provider/smtp_credentials"
+	"github.com/hackthebox/terraform-provider-mailgun/internal/provider/template_versions"
+	"github.com/hackthebox/terraform-provider-mailgun/internal/provider/templates"
 	"github.com/hackthebox/terraform-provider-mailgun/internal/provider/webhooks"
 )
 
@@ -140,14 +147,21 @@ func (p *mailgunProvider) Configure(ctx context.Context, req provider.ConfigureR
 // DataSources defines the data sources implemented in the provider.
 func (p *mailgunProvider) DataSources(_ context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
-		domains.NewDomainDataSource,                        // Single domain lookup by name
-		domains.NewDomainsListDataSource,                   // List all domains
-		smtp_credentials.NewSmtpCredentialDataSource,       // Single SMTP credential lookup
-		smtp_credentials.NewSmtpCredentialsListDataSource,  // List SMTP credentials for a domain
-		domain_sending_keys.NewDomainSendingKeysDataSource, // List domain sending keys
-		routes.NewRoutesDataSource,                         // List routes
-		webhooks.NewWebhooksDataSource,                     // List webhooks for a domain
-		ip_allowlist.NewIPAllowlistDataSource,              // List IP allowlist entries
+		domains.NewDomainDataSource,                          // Single domain lookup by name
+		domains.NewDomainsListDataSource,                     // List all domains
+		smtp_credentials.NewSmtpCredentialDataSource,         // Single SMTP credential lookup
+		smtp_credentials.NewSmtpCredentialsListDataSource,    // List SMTP credentials for a domain
+		domain_sending_keys.NewDomainSendingKeysDataSource,   // List domain sending keys
+		routes.NewRoutesDataSource,                           // List routes
+		webhooks.NewWebhooksDataSource,                       // List webhooks for a domain
+		ip_allowlist.NewIPAllowlistDataSource,                // List IP allowlist entries
+		templates.NewTemplatesDataSource,                     // List templates for a domain
+		template_versions.NewTemplateVersionsDataSource,      // List template versions
+		mailing_lists.NewMailingListsDataSource,              // List mailing lists
+		mailing_list_members.NewMailingListMembersDataSource, // List mailing list members
+		domain_tracking.NewDomainTrackingDataSource,          // Domain tracking settings
+		domain_dkim_key.NewDomainDkimKeysDataSource,          // List DKIM keys for a domain
+		domain_ip.NewDomainIPsDataSource,                     // List IPs for a domain
 	}
 }
 
@@ -160,5 +174,12 @@ func (p *mailgunProvider) Resources(_ context.Context) []func() resource.Resourc
 		routes.NewRouteResource,
 		webhooks.NewWebhookResource,
 		ip_allowlist.NewIPAllowlistResource,
+		templates.NewTemplateResource,
+		template_versions.NewTemplateVersionResource,
+		mailing_lists.NewMailingListResource,
+		mailing_list_members.NewMailingListMemberResource,
+		domain_tracking.NewDomainTrackingResource,
+		domain_dkim_key.NewDomainDkimKeyResource,
+		domain_ip.NewDomainIPResource,
 	}
 }
