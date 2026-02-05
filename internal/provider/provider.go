@@ -119,7 +119,7 @@ func (p *mailgunProvider) Configure(ctx context.Context, req provider.ConfigureR
 	if !config.Region.IsNull() {
 		region := config.Region.ValueString()
 		if region == "EU" {
-			if err := mg.SetAPIBase("https://api.eu.mailgun.net/v3"); err != nil {
+			if err := mg.SetAPIBase("https://api.eu.mailgun.net"); err != nil {
 				resp.Diagnostics.AddError(
 					"Failed to Set API Base for EU Region",
 					"Could not configure the Mailgun client for EU region: "+err.Error(),
