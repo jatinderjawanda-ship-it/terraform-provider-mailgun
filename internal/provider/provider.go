@@ -22,7 +22,9 @@ import (
 	"github.com/hackthebox/terraform-provider-mailgun/internal/provider/mailing_list_members"
 	"github.com/hackthebox/terraform-provider-mailgun/internal/provider/mailing_lists"
 	"github.com/hackthebox/terraform-provider-mailgun/internal/provider/routes"
+	"github.com/hackthebox/terraform-provider-mailgun/internal/provider/send_alerts"
 	"github.com/hackthebox/terraform-provider-mailgun/internal/provider/smtp_credentials"
+	"github.com/hackthebox/terraform-provider-mailgun/internal/provider/subaccounts"
 	"github.com/hackthebox/terraform-provider-mailgun/internal/provider/template_versions"
 	"github.com/hackthebox/terraform-provider-mailgun/internal/provider/templates"
 	"github.com/hackthebox/terraform-provider-mailgun/internal/provider/webhooks"
@@ -162,6 +164,10 @@ func (p *mailgunProvider) DataSources(_ context.Context) []func() datasource.Dat
 		domain_tracking.NewDomainTrackingDataSource,          // Domain tracking settings
 		domain_dkim_key.NewDomainDkimKeysDataSource,          // List DKIM keys for a domain
 		domain_ip.NewDomainIPsDataSource,                     // List IPs for a domain
+		subaccounts.NewSubaccountDataSource,                  // Single subaccount lookup
+		subaccounts.NewSubaccountsListDataSource,             // List all subaccounts
+		send_alerts.NewSendAlertDataSource,                   // Single send alert lookup
+		send_alerts.NewSendAlertsListDataSource,              // List all send alerts
 	}
 }
 
@@ -181,5 +187,6 @@ func (p *mailgunProvider) Resources(_ context.Context) []func() resource.Resourc
 		domain_tracking.NewDomainTrackingResource,
 		domain_dkim_key.NewDomainDkimKeyResource,
 		domain_ip.NewDomainIPResource,
+		send_alerts.NewSendAlertResource, // Send alert resource for threshold-based alerts
 	}
 }
