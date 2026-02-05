@@ -1,4 +1,10 @@
-## 1.0.0 (Unreleased)
+## 1.0.1 (February 6, 2026)
+
+BUG FIXES:
+
+* provider: Fixed EU region configuration by removing version suffix from API base URL
+
+## 1.0.0 (February 5, 2026)
 
 BREAKING CHANGES:
 
