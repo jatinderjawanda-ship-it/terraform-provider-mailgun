@@ -1,3 +1,9 @@
+## 1.0.2 (March 13, 2026)
+
+ENHANCEMENTS:
+* data-source/mailgun_domain: Added `authentication_dns_records` computed attribute exposing Mailgun-generated DMARC records ([#49](https://github.com/hackthebox/terraform-provider-mailgun/pull/49))
+* resource/mailgun_domain: Added `authentication_dns_records` computed attribute exposing Mailgun-generated DMARC records ([#49](https://github.com/hackthebox/terraform-provider-mailgun/pull/49))
+
 ## 1.0.1 (February 6, 2026)
 
 BUG FIXES:
