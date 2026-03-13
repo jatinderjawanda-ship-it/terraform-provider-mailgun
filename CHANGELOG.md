@@ -1,3 +1,12 @@
+## 1.0.3 (March 13, 2026)
+
+ENHANCEMENTS:
+* data-source/mailgun_domain: Improved `authentication_dns_records` attribute descriptions documenting DMARC-specific behavior ([#50](https://github.com/hackthebox/terraform-provider-mailgun/pull/50))
+* resource/mailgun_domain: `authentication_dns_records.valid` now reflects actual DNS configuration status from Mailgun DMARC API ([#50](https://github.com/hackthebox/terraform-provider-mailgun/pull/50))
+
+BUG FIXES:
+* resource/mailgun_domain: Fixed `authentication_dns_records` to fetch DMARC records from correct Mailgun API endpoint (`GET /v1/dmarc/records/{domain}`) ([#50](https://github.com/hackthebox/terraform-provider-mailgun/pull/50))
+
 ## 1.0.2 (March 13, 2026)
 
 ENHANCEMENTS:
