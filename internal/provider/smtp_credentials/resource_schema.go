@@ -4,10 +4,12 @@
 package smtp_credentials
 
 import (
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	rschema "github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 )
 
 // SmtpCredentialResourceSchema returns the schema for the SMTP credential resource
@@ -38,9 +40,18 @@ func SmtpCredentialResourceSchema() rschema.Schema {
 				},
 			},
 			"password": rschema.StringAttribute{
-				Description: "The password for SMTP authentication. This is write-only and cannot be read back from the API.",
-				Required:    true,
-				Sensitive:   true,
+				Description: "The password for SMTP authentication. This is write-only and cannot be read back from the API. " +
+					"Set this when creating a credential or when rotating the password of an imported credential. " +
+					"Leave it unset to keep the existing password of an imported credential.",
+				Optional:  true,
+				Computed:  true,
+				Sensitive: true,
+				Validators: []validator.String{
+					stringvalidator.LengthAtLeast(1),
+				},
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"full_login": rschema.StringAttribute{
 				Description: "The full SMTP login in format 'login@domain'. Use this value for SMTP authentication.",

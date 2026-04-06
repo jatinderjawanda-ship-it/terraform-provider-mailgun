@@ -8,6 +8,7 @@ import (
 	"os"
 	"testing"
 
+	rschema "github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
 
@@ -21,7 +22,7 @@ func TestSmtpCredentialResourceSchema_HasRequiredFields(t *testing.T) {
 	schema := smtp_credentials.SmtpCredentialResourceSchema()
 
 	// Verify key fields exist
-	requiredFields := []string{"domain", "login", "password"}
+	requiredFields := []string{"domain", "login"}
 	for _, field := range requiredFields {
 		if schema.Attributes[field] == nil {
 			t.Errorf("Schema missing required '%s' attribute", field)
@@ -38,6 +39,19 @@ func TestSmtpCredentialResourceSchema_HasRequiredFields(t *testing.T) {
 	// Verify description exists
 	if schema.Description == "" {
 		t.Error("Schema should have a description")
+	}
+
+	passwordAttr, ok := schema.Attributes["password"].(rschema.StringAttribute)
+	if !ok {
+		t.Fatal("Schema missing string 'password' attribute")
+	}
+
+	if !passwordAttr.Optional {
+		t.Error("Password should be optional to support imported credentials")
+	}
+
+	if !passwordAttr.Computed {
+		t.Error("Password should be computed to preserve state for imported credentials")
 	}
 }
 
@@ -113,6 +127,15 @@ func TestAccSmtpCredentialResource(t *testing.T) {
 				ImportStateVerify:       true,
 				ImportStateVerifyIgnore: []string{"password"}, // Password cannot be imported
 			},
+			// Ensure an imported credential remains stable when password is omitted
+			{
+				Config: testAccSmtpCredentialImportedResourceConfig(domainName, loginName),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("mailgun_smtp_credential.test", "domain", domainName),
+					resource.TestCheckResourceAttr("mailgun_smtp_credential.test", "login", loginName),
+					resource.TestCheckResourceAttr("mailgun_smtp_credential.test", "full_login", fmt.Sprintf("%s@%s", loginName, domainName)),
+				),
+			},
 			// Update password testing
 			{
 				Config: testAccSmtpCredentialResourceConfig(domainName, loginName, "updated-password-456"),
@@ -164,6 +187,19 @@ resource "mailgun_smtp_credential" "test" {
   password = "%s"
 }
 `, os.Getenv("MAILGUN_API_KEY"), domain, login, password)
+}
+
+func testAccSmtpCredentialImportedResourceConfig(domain, login string) string {
+	return fmt.Sprintf(`
+provider "mailgun" {
+  api_key = "%s"
+}
+
+resource "mailgun_smtp_credential" "test" {
+  domain = "%s"
+  login  = "%s"
+}
+`, os.Getenv("MAILGUN_API_KEY"), domain, login)
 }
 
 func testAccSmtpCredentialsListDataSourceConfig(domain string) string {
